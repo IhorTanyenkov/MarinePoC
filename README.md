@@ -1,4 +1,4 @@
-# NBot Port Tariff Agent PoC
+# Port Tariff Agent PoC
 
 A general-purpose port tariff calculator. Upload any port tariff PDF; an LLM agent (Gemini / Claude / OpenAI-compatible) reads the document natively, extracts the rate logic into a portable rule pack, validates it against worked examples it found in the document, and exposes a deterministic calculator tool. Vessel facts → totals with evidence and trace.
 
