@@ -1,0 +1,84 @@
+{
+  "schema_version": "nbot.static_agent_graph.v1",
+  "goal": "Adopt any uploaded port tariff document and calculate vessel dues using extracted rules.",
+  "nodes": [
+    {
+      "id": "document_ingest",
+      "label": "Ingest uploaded tariff document",
+      "owner": "tool",
+      "outputs": ["page_text", "table_text", "source_references"],
+      "deterministic": true
+    },
+    {
+      "id": "candidate_extract",
+      "label": "Find candidate charge sections",
+      "owner": "agent",
+      "prompt": "prompts/rule_extraction_agent.md",
+      "outputs": ["candidate_rules", "open_questions"],
+      "deterministic": false
+    },
+    {
+      "id": "research_clarify",
+      "label": "Clarify ambiguous terms or missing context",
+      "owner": "agent",
+      "prompt": "prompts/research_agent.md",
+      "outputs": ["research_results"],
+      "deterministic": false,
+      "optional": true
+    },
+    {
+      "id": "rule_normalize",
+      "label": "Normalize candidates to rule pack DSL",
+      "owner": "agent",
+      "prompt": "prompts/rule_extraction_agent.md",
+      "outputs": ["port_tariff.rule_pack.v1"],
+      "deterministic": false
+    },
+    {
+      "id": "rule_validate",
+      "label": "Validate no hardcode and all constants have evidence",
+      "owner": "agent",
+      "prompt": "prompts/validation_agent.md",
+      "outputs": ["validation_report"],
+      "deterministic": false
+    },
+    {
+      "id": "tool_compile",
+      "label": "Compile rules into a port-specific calculator tool",
+      "owner": "agent",
+      "outputs": ["nbot.tool_descriptor.v1", "tool_execute_endpoint"],
+      "deterministic": true
+    },
+    {
+      "id": "core_evaluate",
+      "label": "Execute calculator tool through nbot_lite C++ core",
+      "owner": "core",
+      "outputs": ["calculation_result"],
+      "deterministic": true
+    },
+    {
+      "id": "explain_trace",
+      "label": "Explain totals with graph, evidence, and confidence",
+      "owner": "api",
+      "outputs": ["user_trace"],
+      "deterministic": true
+    }
+  ],
+  "edges": [
+    ["document_ingest", "candidate_extract"],
+    ["candidate_extract", "research_clarify"],
+    ["candidate_extract", "rule_normalize"],
+    ["research_clarify", "rule_normalize"],
+    ["rule_normalize", "rule_validate"],
+    ["rule_validate", "tool_compile"],
+    ["tool_compile", "core_evaluate"],
+    ["core_evaluate", "explain_trace"]
+  ],
+  "invariants": [
+    "Rates and tiers live in uploaded rule packs, not source code.",
+    "Models are interchangeable cognitive resources selected through provider configuration.",
+    "The deterministic core never calls a model and never researches the internet.",
+    "Every charge result must cite rule evidence.",
+    "Validation fixtures can test the rule pack but must not be used as primary rule evidence."
+  ]
+}

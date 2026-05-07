@@ -1,0 +1,14 @@
+{
+  "schema_version": "port_tariff.rule_pack.v1",
+  "document": {
+    "title": "No active tariff rule pack",
+    "source": "Upload a tariff document or generated rule pack",
+    "jurisdiction": "unconfigured",
+    "currency": "UNKNOWN"
+  },
+  "normalization": {
+    "rule_pack_is_data_not_code": true,
+    "generated_from_upload_required": true
+  },
+  "rules": []
+}

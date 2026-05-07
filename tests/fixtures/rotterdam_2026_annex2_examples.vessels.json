@@ -1,0 +1,43 @@
+{
+  "annex2_example_1": {
+    "expected_total": 26216.63,
+    "vessel": {
+      "technical_specs": {"gross_tonnage": 23230},
+      "operational_data": {
+        "example_id": "annex2_example_1",
+        "crude_oil_tonnes": 18000,
+        "other_liquid_bulk_tonnes": 10000
+      }
+    }
+  },
+  "annex2_example_2": {
+    "expected_total": 1304.75,
+    "vessel": {
+      "technical_specs": {"gross_tonnage": 3412},
+      "operational_data": {
+        "example_id": "annex2_example_2",
+        "container_tonnes": 3201
+      }
+    }
+  },
+  "annex2_example_3": {
+    "expected_total": 28179.63,
+    "vessel": {
+      "technical_specs": {"gross_tonnage": 75246},
+      "operational_data": {
+        "example_id": "annex2_example_3",
+        "container_tonnes": 39000
+      }
+    }
+  },
+  "annex2_example_4": {
+    "expected_total": 21808.74,
+    "vessel": {
+      "technical_specs": {"gross_tonnage": 75246},
+      "operational_data": {
+        "example_id": "annex2_example_4",
+        "container_tonnes": 15000
+      }
+    }
+  }
+}

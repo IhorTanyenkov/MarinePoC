@@ -1,0 +1,7 @@
+.logs/
+.run/
+.runtime/
+.vite-cache/
+api/port_tariff_agent/__pycache__/
+web/dist/
+web/node_modules

@@ -1,0 +1,39 @@
+{
+  "schema_version": "nbot.model_providers.v1",
+  "default_research_provider": "gemini",
+  "providers": [
+    {
+      "id": "gemini",
+      "kind": "gemini",
+      "endpoint": "https://generativelanguage.googleapis.com",
+      "model": "gemini-1.5-pro",
+      "api_key_env": "GEMINI_API_KEY",
+      "roles": ["rule_extraction", "ambiguity_research", "evidence_check"],
+      "enabled": true
+    },
+    {
+      "id": "claude",
+      "kind": "anthropic",
+      "endpoint": "https://api.anthropic.com",
+      "model": "claude-sonnet-4-6",
+      "api_key_env": "ANTHROPIC_API_KEY",
+      "roles": ["rule_extraction", "ambiguity_research", "evidence_check"],
+      "enabled": true
+    },
+    {
+      "id": "local-openai-compatible",
+      "kind": "openai_compatible",
+      "endpoint": "http://127.0.0.1:8000/v1",
+      "model": "local-tariff-reasoner",
+      "api_key_env": "LOCAL_LLM_API_KEY",
+      "roles": ["rule_extraction", "ambiguity_research"],
+      "enabled": false
+    }
+  ],
+  "policy": {
+    "never_hardcode_provider": true,
+    "reroute_on_http_status": [408, 409, 425, 429, 500, 502, 503, 504],
+    "require_evidence_for_rule": true,
+    "allow_internet_research": true
+  }
+}

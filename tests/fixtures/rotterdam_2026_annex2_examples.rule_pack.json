@@ -1,0 +1,154 @@
+{
+  "schema_version": "port_tariff.rule_pack.v1",
+  "document": {
+    "title": "Port of Rotterdam 2026 Annex 2 Seaport Dues Examples",
+    "source": "port-tariffs-and-conditions-port-of -rotterdam-2026.pdf",
+    "jurisdiction": "Rotterdam",
+    "currency": "EUR"
+  },
+  "normalization": {
+    "rule_pack_is_data_not_code": true,
+    "fixture_scope": "Annex 2 published examples only",
+    "generated_from_pdf_examples": true
+  },
+  "rules": [
+    {
+      "id": "rotterdam.annex2.example1.vessel_component",
+      "charge_name": "Example 1 Vessel Component",
+      "category": "seaport_dues",
+      "applicability": [{"field": "operational_data.example_id", "op": "eq_ci", "value": "annex2_example_1"}],
+      "formula": {"op": "multiply", "args": [{"var": "technical_specs.gross_tonnage"}, {"const": 0.314}]},
+      "evidence": [{"page": 19, "quote": "Example 1 ... GT size 23,230 × GT rate of €0.314 ... €7,294.22"}],
+      "confidence": 0.99
+    },
+    {
+      "id": "rotterdam.annex2.example1.cargo_component",
+      "charge_name": "Example 1 Cargo Component After Efficiency Discount",
+      "category": "seaport_dues",
+      "applicability": [{"field": "operational_data.example_id", "op": "eq_ci", "value": "annex2_example_1"}],
+      "formula": {
+        "op": "min",
+        "args": [
+          {
+            "op": "add",
+            "args": [
+              {"op": "multiply", "args": [{"var": "operational_data.crude_oil_tonnes"}, {"const": 0.763}]},
+              {"op": "multiply", "args": [{"var": "operational_data.other_liquid_bulk_tonnes"}, {"const": 0.596}]}
+            ]
+          },
+          {"op": "multiply", "args": [{"var": "technical_specs.gross_tonnage"}, {"const": 1.333}, {"const": 0.596}]}
+        ]
+      },
+      "evidence": [{"page": 19, "quote": "Step 6 Subtotal cargo component €18,455.49"}],
+      "confidence": 0.99
+    },
+    {
+      "id": "rotterdam.annex2.example1.sustainability_component",
+      "charge_name": "Example 1 Sustainability Component After Green Award",
+      "category": "sustainability",
+      "applicability": [{"field": "operational_data.example_id", "op": "eq_ci", "value": "annex2_example_1"}],
+      "formula": {"op": "multiply", "args": [{"var": "technical_specs.gross_tonnage"}, {"const": 0.067}, {"const": 0.3}]},
+      "evidence": [{"page": 19, "quote": "Green Award discount (70%) €-1,089.49 ... Subtotal sustainability component €466.92"}],
+      "confidence": 0.99
+    },
+    {
+      "id": "rotterdam.annex2.example2.vessel_component",
+      "charge_name": "Example 2 Vessel Component",
+      "category": "seaport_dues",
+      "applicability": [{"field": "operational_data.example_id", "op": "eq_ci", "value": "annex2_example_2"}],
+      "formula": {"op": "multiply", "args": [{"var": "technical_specs.gross_tonnage"}, {"const": 0.118}]},
+      "evidence": [{"page": 19, "quote": "Example 2 ... GT size 3,412 x GT rate of €0.118 €402.62"}],
+      "confidence": 0.99
+    },
+    {
+      "id": "rotterdam.annex2.example2.cargo_component",
+      "charge_name": "Example 2 Cargo Component After Efficiency Discount",
+      "category": "seaport_dues",
+      "applicability": [{"field": "operational_data.example_id", "op": "eq_ci", "value": "annex2_example_2"}],
+      "formula": {
+        "op": "min",
+        "args": [
+          {"op": "multiply", "args": [{"var": "operational_data.container_tonnes"}, {"const": 0.432}]},
+          {"op": "multiply", "args": [{"var": "technical_specs.gross_tonnage"}, {"const": 0.55}, {"const": 0.432}]}
+        ]
+      },
+      "evidence": [{"page": 19, "quote": "Step 6 Subtotal cargo component €810.69"}],
+      "confidence": 0.99
+    },
+    {
+      "id": "rotterdam.annex2.example2.sustainability_component",
+      "charge_name": "Example 2 Sustainability Component After ESI Discount",
+      "category": "sustainability",
+      "applicability": [{"field": "operational_data.example_id", "op": "eq_ci", "value": "annex2_example_2"}],
+      "formula": {"op": "multiply", "args": [{"var": "technical_specs.gross_tonnage"}, {"const": 0.067}, {"const": 0.4}]},
+      "evidence": [{"page": 19, "quote": "ESI discount (60%) €-137.16 ... Subtotal sustainability component €91.44"}],
+      "confidence": 0.99
+    },
+    {
+      "id": "rotterdam.annex2.example3.vessel_component",
+      "charge_name": "Example 3 Vessel Component",
+      "category": "seaport_dues",
+      "applicability": [{"field": "operational_data.example_id", "op": "eq_ci", "value": "annex2_example_3"}],
+      "formula": {"op": "multiply", "args": [{"var": "technical_specs.gross_tonnage"}, {"const": 0.151}]},
+      "evidence": [{"page": 20, "quote": "Example 3 ... GT size 75,246 x GT rate of €0.151 €11,362.15"}],
+      "confidence": 0.99
+    },
+    {
+      "id": "rotterdam.annex2.example3.cargo_component",
+      "charge_name": "Example 3 Cargo Component After Efficiency Discount",
+      "category": "seaport_dues",
+      "applicability": [{"field": "operational_data.example_id", "op": "eq_ci", "value": "annex2_example_3"}],
+      "formula": {
+        "op": "min",
+        "args": [
+          {"op": "multiply", "args": [{"var": "operational_data.container_tonnes"}, {"const": 0.562}]},
+          {"op": "multiply", "args": [{"var": "technical_specs.gross_tonnage"}, {"const": 0.35}, {"const": 0.562}]}
+        ]
+      },
+      "evidence": [{"page": 20, "quote": "Step 6 Subtotal cargo component €14,800.89"}],
+      "confidence": 0.99
+    },
+    {
+      "id": "rotterdam.annex2.example3.sustainability_component",
+      "charge_name": "Example 3 Sustainability Component After ESI Discount",
+      "category": "sustainability",
+      "applicability": [{"field": "operational_data.example_id", "op": "eq_ci", "value": "annex2_example_3"}],
+      "formula": {"op": "multiply", "args": [{"var": "technical_specs.gross_tonnage"}, {"const": 0.067}, {"const": 0.4}]},
+      "evidence": [{"page": 20, "quote": "ESI discount (60%) €-3,024.89 ... Subtotal sustainability component €2,016.59"}],
+      "confidence": 0.99
+    },
+    {
+      "id": "rotterdam.annex2.example4.vessel_component",
+      "charge_name": "Example 4 Vessel Component",
+      "category": "seaport_dues",
+      "applicability": [{"field": "operational_data.example_id", "op": "eq_ci", "value": "annex2_example_4"}],
+      "formula": {"op": "multiply", "args": [{"var": "technical_specs.gross_tonnage"}, {"const": 0.151}]},
+      "evidence": [{"page": 20, "quote": "Example 4 ... GT size 75,246 x GT rate of €0.151 €11,362.15"}],
+      "confidence": 0.99
+    },
+    {
+      "id": "rotterdam.annex2.example4.cargo_component",
+      "charge_name": "Example 4 Cargo Component",
+      "category": "seaport_dues",
+      "applicability": [{"field": "operational_data.example_id", "op": "eq_ci", "value": "annex2_example_4"}],
+      "formula": {
+        "op": "min",
+        "args": [
+          {"op": "multiply", "args": [{"var": "operational_data.container_tonnes"}, {"const": 0.562}]},
+          {"op": "multiply", "args": [{"var": "technical_specs.gross_tonnage"}, {"const": 0.35}, {"const": 0.562}]}
+        ]
+      },
+      "evidence": [{"page": 20, "quote": "Step 6 Subtotal cargo component €8,430.00"}],
+      "confidence": 0.99
+    },
+    {
+      "id": "rotterdam.annex2.example4.sustainability_component",
+      "charge_name": "Example 4 Sustainability Component After ESI Discount",
+      "category": "sustainability",
+      "applicability": [{"field": "operational_data.example_id", "op": "eq_ci", "value": "annex2_example_4"}],
+      "formula": {"op": "multiply", "args": [{"var": "technical_specs.gross_tonnage"}, {"const": 0.067}, {"const": 0.4}]},
+      "evidence": [{"page": 20, "quote": "Step 10 Subtotal sustainability component €2,016.59"}],
+      "confidence": 0.99
+    }
+  ]
+}
