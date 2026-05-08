@@ -98,13 +98,27 @@ Valid applicability examples:
 
 ## Extraction Protocol
 
-1. Identify charge families: vessel dues, port dues, light dues, pilotage, towage, berthing, running lines, VTS, cargo dues, surcharges, exemptions, reductions, and minimums.
-2. Extract payer, port scope, vessel scope, unit basis, rates, tiers, service-count logic, duration logic, minimums, reductions, surcharges, and exemptions.
-3. Keep rules atomic. Prefer tier-specific rules with applicability conditions.
-4. Every numeric constant in a formula must appear in evidence.
+1. **Identify the charge structure used by THIS document — do not impose vocabulary from any other tariff.** Charge naming varies wildly across jurisdictions:
+   - South Africa (Transnet) uses *light dues, port dues, VTS, pilotage, towage, running of vessel lines, cargo dues*.
+   - Rotterdam uses *seaport dues vessel component, cargo component, sustainability component, special rates, waste fee, inland port dues, buoy/dolphin dues*.
+   - Hamburg uses *price categories 11–39* keyed by ship type and purpose of call.
+   - Singapore uses *categories 1/2/3* by purpose-of-call (cargo, transhipment, lay-up, bunkering).
+   - Los Angeles uses *dockage, wharfage, free time, demurrage, infrastructure fees, emissions charges*.
+
+   Use the document's own headings, table column labels, and prose terms verbatim as `charge_name`. Do NOT translate them into another port's nomenclature.
+
+2. For each charge, extract:
+   - **Unit basis**: per GT, per NT, per cargo tonne, per metre LOA, per call, per 24h period, per month, flat, or a hybrid stated by the document.
+   - **Applicability**: payer, port/terminal scope, vessel-type scope, service-type tier, cargo-type tier, time validity.
+   - **Rate(s) and tier breakpoints** as separate atomic rules whenever possible.
+   - **Modifiers**: derived discounts (efficiency caps, "max of X or Y" formulas), surcharges, minimums, exemptions, time-bounded rebates.
+3. Keep rules atomic. Prefer tier-specific rules with applicability conditions over a single rule that branches internally.
+4. Every numeric constant in a `formula` MUST appear verbatim in the document and be cited in `evidence` with a page number and short quote.
 5. If a validation fixture conflicts with the document, expose the conflict in `notes` or `open_questions`; do not hide it in code.
-6. If new tariff rules require new operators, ask for core extension instead of inventing unsupported formula syntax.
-7. After validation, compile the rule pack into a `calculate_port_tariffs` tool descriptor with required vessel fields, evidence policy, and a deterministic execution endpoint.
+6. If a charge needs an operator the formula DSL doesn't have, list it in `open_questions` rather than inventing unsupported formula syntax.
+7. After validation, the rule pack is automatically compiled into a `calculate_port_tariffs` tool descriptor. You don't need to emit the descriptor.
+
+**Sanity check before returning:** none of the rule `id`s, `charge_name`s, or applicability values should mention concepts that aren't actually in this document. If you catch yourself writing `light_dues` or `pilotage` for a Hamburg PDF, stop and re-read the document.
 
 ## Research Triggers
 
