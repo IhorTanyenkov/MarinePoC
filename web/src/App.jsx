@@ -1289,15 +1289,8 @@ function App() {
     }
   }
 
-  async function runLiveCursor(start = 0, end = STAGES.length) {
-    for (let i = start; i < end; i++) {
-      setLiveCursor(i);
-      await new Promise((r) => setTimeout(r, 220));
-    }
-    setLiveCursor(null);
-  }
-
   const RUN_PHASE_START = STAGES.findIndex((s) => s.id === 'core_evaluate');
+  const NORMALIZE_INDEX = STAGES.findIndex((s) => s.id === 'rule_normalize');
 
   async function calculate() {
     setBusy(true);
@@ -1312,7 +1305,6 @@ function App() {
       return;
     }
     logEvent('Calculation started', 'Evaluating vessel against active rule pack', 'working');
-    const cursor = runLiveCursor(RUN_PHASE_START, STAGES.length);
     try {
       const vessel = JSON.parse(vesselText);
       const res = await fetch(`${API}/api/calculate`, {
@@ -1325,12 +1317,10 @@ function App() {
         throw new Error(txt || `HTTP ${res.status}`);
       }
       const payload = await res.json();
-      await cursor;
       setResult(payload);
       logEvent('Calculation complete', `Total ${currency(payload.total, payload.document?.currency || 'ZAR')}`, 'success');
       setSelectedStage('core_evaluate');
     } catch (e) {
-      await cursor;
       setCalcError(e.message);
       logEvent('Calculation failed', e.message, 'error');
     } finally {
@@ -1346,25 +1336,14 @@ function App() {
 
     const startedAt = Date.now();
     setExtracting({ filename: file.name, startedAt });
-
-    let cursorRunning = true;
-    const cursorTask = (async () => {
-      while (cursorRunning) {
-        for (let i = 0; i < RUN_PHASE_START && cursorRunning; i++) {
-          setLiveCursor(i);
-          await new Promise((r) => setTimeout(r, 240));
-        }
-      }
-      setLiveCursor(null);
-    })();
+    setLiveCursor(NORMALIZE_INDEX);
 
     try {
       const form = new FormData();
       form.append('file', file, file.name);
       const res = await fetch(`${API}/api/document/upload`, { method: 'POST', body: form });
       const payload = await res.json();
-      cursorRunning = false;
-      await cursorTask;
+      setLiveCursor(null);
       setExtracting(null);
 
       setDocumentAnalysis(payload);
@@ -1384,8 +1363,7 @@ function App() {
       }
       setSelectedStage('candidate_extract');
     } catch (err) {
-      cursorRunning = false;
-      await cursorTask;
+      setLiveCursor(null);
       setExtracting(null);
       logEvent('Upload failed', err.message, 'error');
     }
@@ -1396,14 +1374,12 @@ function App() {
       setActivePortId('');
       return;
     }
-    const cursor = runLiveCursor(3, RUN_PHASE_START);
     try {
       const res = await fetch(`${API}/api/ports/${encodeURIComponent(portId)}/activate`, { method: 'POST' });
       if (!res.ok) {
         throw new Error(await res.text());
       }
       const payload = await res.json();
-      await cursor;
       setActivePortId(portId);
       setRules(payload.rules);
       setActiveRulePack(payload.rules);
@@ -1411,7 +1387,6 @@ function App() {
       logEvent('Known port activated', payload.message, 'success');
       validatePack(payload.rules);
     } catch (err) {
-      await cursor;
       logEvent('Port activation failed', err.message, 'error');
     }
   }
