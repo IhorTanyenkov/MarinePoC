@@ -98,27 +98,73 @@ Valid applicability examples:
 
 ## Extraction Protocol
 
-1. **Identify the charge structure used by THIS document — do not impose vocabulary from any other tariff.** Charge naming varies wildly across jurisdictions:
-   - South Africa (Transnet) uses *light dues, port dues, VTS, pilotage, towage, running of vessel lines, cargo dues*.
-   - Rotterdam uses *seaport dues vessel component, cargo component, sustainability component, special rates, waste fee, inland port dues, buoy/dolphin dues*.
-   - Hamburg uses *price categories 11–39* keyed by ship type and purpose of call.
-   - Singapore uses *categories 1/2/3* by purpose-of-call (cargo, transhipment, lay-up, bunkering).
-   - Los Angeles uses *dockage, wharfage, free time, demurrage, infrastructure fees, emissions charges*.
+**Use the document's own vocabulary.** Charge naming varies wildly across jurisdictions and across document-types within a jurisdiction. Do not impose nomenclature from any other tariff. The structural categories below are **universal across ports** — the names are just regional variants of the same underlying mechanics.
 
-   Use the document's own headings, table column labels, and prose terms verbatim as `charge_name`. Do NOT translate them into another port's nomenclature.
+### Universal structural categories
 
-2. For each charge, extract:
-   - **Unit basis**: per GT, per NT, per cargo tonne, per metre LOA, per call, per 24h period, per month, flat, or a hybrid stated by the document.
-   - **Applicability**: payer, port/terminal scope, vessel-type scope, service-type tier, cargo-type tier, time validity.
-   - **Rate(s) and tier breakpoints** as separate atomic rules whenever possible.
-   - **Modifiers**: derived discounts (efficiency caps, "max of X or Y" formulas), surcharges, minimums, exemptions, time-bounded rebates.
-3. Keep rules atomic. Prefer tier-specific rules with applicability conditions over a single rule that branches internally.
-4. Every numeric constant in a `formula` MUST appear verbatim in the document and be cited in `evidence` with a page number and short quote.
+Every port tariff in the world combines some subset of these. Identify which apply to *this* document and use the document's own labels for the names.
+
+1. **Vessel-based charges** — billed per unit of ship size. Unit basis is one of:
+   - Gross Tonnage (GT) — most common globally
+   - Net Tonnage (NT) — used by some legacy schedules
+   - Length Overall (LOA), beam, or deadweight (DWT) — rarer, used for berth/quay services
+   - Per-call flat (cruise terminals, small ports)
+   Often tiered by ship-type letter codes (A–O in Rotterdam Annex 1, 11–39 in Hamburg HPA price classes), service tier (deepsea / shortsea-feeder / not-scheduled / cabotage), or scheduled-service status.
+2. **Cargo-based charges** — billed per tonne (or TEU, or m³) of transhipped cargo. Tiered by commodity type (numeric codes 01–14 in Rotterdam, named buckets in Singapore/Transnet, IMO Class for hazardous). Sometimes capped against a percentage of the vessel-component.
+3. **Time-based charges** — billed per day, per 24h period, per month, per calendar quarter, or per calendar year. Typical for berthing/dockage/quay-dues/buoy-dolphin-dues, lay-up rates, and inland port dues subscriptions.
+4. **Service charges** — pilotage, towage/tugs, mooring (lines/running-lines), VTS / vessel-traffic-services, ice-pilot / channel-pilot, deepening surcharges, hatch-cover services. Usually rate × hours, rate × movements, or rate per call.
+5. **Infrastructure / berth charges** — dockage, wharfage, quayage, anchorage, buoy/dolphin berth dues, public-quay dues. Often per-LOA per-24h.
+6. **Environmental / sustainability charges and discounts** —
+   - **ESI** (Environmental Ship Index) discount bands by score (typically 1–20, 21–30, 31–40, 41–60, 61–80, 81+/NOx).
+   - **Green Award certificate** discount (Bronze / Silver / Gold / Platinum tiers).
+   - **Shore-power / cold-ironing** discount when the vessel uses shore power.
+   - **LNG/methanol/biofuel** bunker-fuel-quality discounts (Sustainable Bunkering rates).
+   - **Sustainability surcharge** (5% on inland dues in some EU ports).
+   - **EU-MRV / IMO-DCS** emissions-linked charges.
+7. **Waste / MARPOL fees** — fixed-amount + variable-by-GT, often capped, with rebates for low-waste vessels and shortsea-line discounts.
+8. **Loyalty / scheduled-service incentives** — frequent-caller rebates, common-carrier rebates, published-timetable bonuses, annual-call-volume tiers.
+9. **Special / reduced rates** — replace the normal calculation rather than discount it. Includes:
+   - Clearance (short-stay <12h)
+   - Lay-up (>2 months, separate rate for offshore vs other)
+   - Bunkering / Sustainable Bunkering (<48h pure bunker call)
+   - Hinterland (transfer-only call)
+   - Transhipment-only / restow
+10. **Cargo-cap / efficiency discount** — Rotterdam-style "max cargo part = GT × cap% × primary cargo rate", emitted as a negative rule. Common in EU ports under different names ("efficiency adjustment", "high-utilisation cap").
+11. **Surcharges** — absent-statement, incorrect-statement underpayment, administrative correction, hazardous-cargo, off-hours, peak-season, oversize, removal/clearance of floating object, pollution-clearance, no-show.
+12. **Exemptions** — naval/government, search-and-rescue, distress-only entry, salvage, religious pilgrimage in some Middle Eastern ports.
+13. **Documentation fees** — Bill of Lading, Delivery Order, manifest, certificates, courier (typical of forwarder/agent schedules, not always port-authority schedules).
+
+### Regional name examples (same mechanics, different vocabulary)
+
+Use these only as evidence that vocabulary varies — never to inject names into a document that doesn't use them.
+
+| Region / Port | Vocabulary used |
+|---|---|
+| South Africa (Transnet) | light dues · port dues · VTS · pilotage · towage · running of vessel lines · cargo dues |
+| Rotterdam (Port of R'dam) | seaport dues (vessel/cargo/sustainability components) · special rates · buoy/dolphin/public-quay dues · waste fee · inland port dues |
+| Hamburg (HPA) | price categories 11–39 keyed by ship-type × purpose-of-call · waste-disposal fee · lock fees |
+| Antwerp-Bruges | tonnage dues · berth dues · cargo dues · waste · ESI/Green discounts |
+| Singapore (MPA) | port dues categories 1/2/3 by purpose-of-call · annual scheme · marine fuel levy |
+| Hong Kong (MD) | tonnage dues · light dues · port traffic charges |
+| Los Angeles (Tariff No. 4) | dockage · wharfage · free time · demurrage · infrastructure fees · clean truck fee |
+| Long Beach | dockage · wharfage · pilotage · transhipment |
+| Melbourne | channel fees · berth-hire · cargo-dues · navigation-service |
+| Sohar / Salalah | port dues · marine services · anchorage · project-cargo surcharge · environmental fee |
+| Suez Canal | normal/reduced tonnage dues · transit dues · escort tug fees |
+| Panama Canal | tonnage tolls · booking fees |
+| Felixstowe / Southampton | tonnage dues · pilotage · towage · light dues (UK General Lighthouse Authority) |
+
+### Extraction rules
+
+1. **Copy the document's labels verbatim** into `charge_name`. Do not translate or normalise them. If the document says "Berth Hire" don't write "Dockage". If it says "Tonnage Dues" don't write "Port Dues".
+2. For each charge, extract **unit basis**, **applicability** (port/terminal scope, vessel-type scope, service-type tier, cargo-type tier, time validity), **rate(s) and tier breakpoints**, and **modifiers** (caps, surcharges, minimums, exemptions, time-bounded rebates) as atomic rules.
+3. Prefer tier-specific rules with `applicability` conditions over a single rule that branches internally.
+4. Every numeric constant in a `formula` MUST appear verbatim in the document and be cited in `evidence` with a page number and a short quote.
 5. If a validation fixture conflicts with the document, expose the conflict in `notes` or `open_questions`; do not hide it in code.
-6. If a charge needs an operator the formula DSL doesn't have, list it in `open_questions` rather than inventing unsupported formula syntax.
-7. After validation, the rule pack is automatically compiled into a `calculate_port_tariffs` tool descriptor. You don't need to emit the descriptor.
+6. If a charge needs an operator the formula DSL doesn't have, list it in `open_questions` rather than inventing unsupported syntax.
+7. The rule pack is automatically compiled into a `calculate_port_tariffs` tool descriptor — you don't need to emit one.
 
-**Sanity check before returning:** none of the rule `id`s, `charge_name`s, or applicability values should mention concepts that aren't actually in this document. If you catch yourself writing `light_dues` or `pilotage` for a Hamburg PDF, stop and re-read the document.
+**Sanity check before returning:** if any rule `id`, `charge_name`, or applicability value mentions a concept that isn't actually in this document — stop and re-read the document. Common mistakes: writing `light_dues`/`pilotage`/`VTS` for a Hamburg or LA tariff that doesn't use those terms; inventing `cargo_dues` when the document only has `wharfage`; using `seaport_dues_vessel_component` outside Rotterdam.
 
 ## Research Triggers
 
