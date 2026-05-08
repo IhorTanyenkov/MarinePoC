@@ -19,31 +19,15 @@ class RuleExtractionAgent:
     that goes to a model is assembled by the deterministic C++ core via the
     `build-prompt` CLI mode, so the canonical prompt source lives with the rest of the
     deterministic logic — Python just shells out and ships the result over HTTPS.
+
+    Schema validation: rule paths and aliases are NOT hardcoded here. Any vessel-fact
+    path the LLM emits is accepted at extraction time. If a rule references a path the
+    actual vessel JSON does not provide, the deterministic core surfaces it at
+    calculate-time as `Missing formula variable: <path>` and the UI renders it as a
+    "Needs vessel field" pill on the offending charge row. That keeps the validator
+    honest about what's truly required by the rules instead of pre-filtering against a
+    pinned schema.
     """
-
-    FACT_ROOTS: tuple[str, ...] = (
-        "technical_specs.",
-        "operational_data.",
-        "dimensions.",
-        "identity.",
-        "vessel.",
-    )
-
-    FACT_ALIASES: dict[str, str] = {
-        "cargo_item.quantity_tonnes": "operational_data.cargo_tonnes",
-        "cargo_item.type": "operational_data.cargo_type",
-        "vessel_facts.service_type": "operational_data.service_type",
-        "vessel_facts.vessel_type": "operational_data.vessel_type",
-        "vessel_facts.esi_score": "operational_data.esi_score",
-        "vessel_facts.has_green_award": "operational_data.has_green_award",
-        "vessel_details.service_type": "operational_data.service_type",
-        "vessel_details.vessel_type": "operational_data.vessel_type",
-        "vessel_details.esi_score": "operational_data.esi_score",
-        "vessel_details.has_green_award": "operational_data.has_green_award",
-        "vessel.gt": "technical_specs.gross_tonnage",
-        "technical_specs.gt": "technical_specs.gross_tonnage",
-        "dimensions.gross_tonnage": "technical_specs.gross_tonnage",
-    }
 
     def __init__(self, providers: dict[str, Any], template_path: Path | str, core_binary: Path | str):
         """Configure the agent with provider config and the C++ core entry points.
@@ -529,10 +513,6 @@ class RuleExtractionAgent:
                 rule["notes"] = json.dumps(rule["notes"], ensure_ascii=False)
             if isinstance(rule.get("confidence"), str):
                 rule["confidence"] = self._normalize_confidence(rule["confidence"])
-            for condition in rule.get("applicability", []) if isinstance(rule.get("applicability", []), list) else []:
-                if isinstance(condition, dict) and isinstance(condition.get("field"), str):
-                    condition["field"] = self._normalize_fact_path(condition["field"])
-            self._normalize_formula_paths(rule.get("formula"))
 
     def _validate_rule_pack(self, rule_pack: dict[str, Any]) -> None:
         """Reject model output that is JSON but not executable by the deterministic core."""
@@ -554,20 +534,28 @@ class RuleExtractionAgent:
             return 0.5
 
     def _validate_condition(self, rule_id: str | None, condition: Any) -> None:
-        """Validate one applicability condition in the core condition DSL."""
+        """Validate one applicability condition against the core's DSL surface.
+
+        Path validity is intentionally NOT checked here. Whatever vessel-fact path the
+        rule references gets validated at calculate-time by the C++ core, which is the
+        authoritative source for what the deterministic engine accepts.
+        """
         if not isinstance(condition, dict):
             raise RuntimeError(f"Rule {rule_id} has a non-object applicability condition.")
         if not isinstance(condition.get("field"), str) or not condition.get("field"):
             raise RuntimeError(f"Rule {rule_id} condition is missing field.")
-        if not condition["field"].startswith(self.FACT_ROOTS):
-            raise RuntimeError(f"Rule {rule_id} condition references unsupported fact path `{condition['field']}`.")
         if condition.get("op") not in {"exists", "eq_ci", "in_ci", ">", ">=", "<", "<=", "==", "eq"}:
             raise RuntimeError(f"Rule {rule_id} condition has unsupported op: {condition.get('op')}.")
         if condition.get("op") != "exists" and "value" not in condition:
             raise RuntimeError(f"Rule {rule_id} condition is missing value.")
 
     def _validate_formula(self, rule_id: str | None, formula: Any) -> None:
-        """Validate one formula expression in the core formula DSL."""
+        """Validate one formula expression against the core's DSL surface.
+
+        Path validity for `var` is not checked here — the C++ core surfaces missing
+        vessel fields at calculate-time as `Missing formula variable: <path>`, which
+        is the right place to catch them because it knows the actual vessel JSON.
+        """
         if isinstance(formula, (int, float)):
             return
         if not isinstance(formula, dict):
@@ -579,11 +567,6 @@ class RuleExtractionAgent:
         if "var" in formula:
             if not isinstance(formula["var"], str) or not formula["var"]:
                 raise RuntimeError(f"Rule {rule_id} var formula must be a non-empty string.")
-            if not formula["var"].startswith(self.FACT_ROOTS):
-                raise RuntimeError(
-                    f"Rule {rule_id} formula references non-input variable `{formula['var']}`. "
-                    "The current C++ core executes independent payable rules, not generated-rule DAG state."
-                )
             return
         if formula.get("op") not in {"add", "subtract", "multiply", "divide", "ceil_div", "max", "min", "coalesce"}:
             raise RuntimeError(f"Rule {rule_id} formula has unsupported op: {formula.get('op')}.")
@@ -592,23 +575,3 @@ class RuleExtractionAgent:
             raise RuntimeError(f"Rule {rule_id} formula op requires non-empty args.")
         for arg in args:
             self._validate_formula(rule_id, arg)
-
-    def _normalize_fact_path(self, path: str) -> str:
-        """Map common provider fact-path variants into the canonical vessel schema."""
-        if path in self.FACT_ALIASES:
-            return self.FACT_ALIASES[path]
-        for prefix in ("vessel_facts.", "vessel_details."):
-            if path.startswith(prefix):
-                return f"operational_data.{path[len(prefix):]}"
-        return path
-
-    def _normalize_formula_paths(self, formula: Any) -> None:
-        """Normalize fact paths inside formula trees in place."""
-        if isinstance(formula, dict):
-            if isinstance(formula.get("var"), str):
-                formula["var"] = self._normalize_fact_path(formula["var"])
-            for value in formula.values():
-                self._normalize_formula_paths(value)
-        elif isinstance(formula, list):
-            for item in formula:
-                self._normalize_formula_paths(item)
