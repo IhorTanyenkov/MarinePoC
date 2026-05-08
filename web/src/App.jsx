@@ -58,24 +58,22 @@ const GREEN_AWARDS = [
 ];
 
 const defaultVessel = {
-  vessel_metadata: { name: 'SUDESTADA', imo: null },
+  vessel_metadata: { name: '', imo: null },
   technical_specs: {
-    type: 'bulk_carrier',
-    gross_tonnage: 51300,
-    net_tonnage: 31192,
-    loa_meters: 229.2,
-    dwt: 93274,
+    type: '',
+    gross_tonnage: null,
+    net_tonnage: null,
+    loa_meters: null,
+    dwt: null,
   },
   operational_data: {
-    port: 'Durban',
-    service: 'not_scheduled',
-    days_alongside: 3.39,
-    num_operations: 2,
-    activity: 'Exporting Iron Ore',
+    port: '',
+    service: '',
+    days_alongside: null,
+    num_operations: null,
+    activity: '',
   },
-  cargo: {
-    ores_tons: 40000,
-  },
+  cargo: {},
   discounts: {
     esi_score: null,
     green_award_certificate: '',
@@ -349,24 +347,49 @@ function StageDetail({ stage, state, onClose, onRunResearch, onTriggerUpload }) 
       <div className="detail-body">
         {stage.id === 'document_ingest' && (
           documentAnalysis ? (
-            <div className="kv-grid">
-              <KV k="Source" v={documentAnalysis.filename} />
-              <KV k="Source ID" v={documentAnalysis.source_id} mono />
-              <KV k="Pages" v={documentAnalysis.pages} />
-              <div className="kv-full">
-                <span className="kv-k">Page links</span>
-                <div className="link-row">
-                  {(documentAnalysis.page_links || []).slice(0, 12).map((link) => (
-                    <a key={link.url} href={apiLink(link.url)} target="_blank" rel="noreferrer">{link.label}</a>
-                  ))}
-                </div>
-              </div>
-              {documentAnalysis.page_text_preview?.[0] && (
+            <div>
+              <div className="kv-grid">
+                <KV k="Source" v={documentAnalysis.filename} />
+                <KV k="Source ID" v={documentAnalysis.source_id} mono />
+                <KV k="Pages" v={documentAnalysis.pages} />
                 <div className="kv-full">
-                  <span className="kv-k">First-page preview</span>
-                  <pre className="excerpt">{documentAnalysis.page_text_preview[0].text.slice(0, 800) || '(empty)'}</pre>
+                  <span className="kv-k">Page links</span>
+                  <div className="link-row">
+                    {(documentAnalysis.page_links || []).slice(0, 12).map((link) => (
+                      <a key={link.url} href={apiLink(link.url)} target="_blank" rel="noreferrer">{link.label}</a>
+                    ))}
+                  </div>
                 </div>
-              )}
+                {documentAnalysis.page_text_preview?.[0] && (
+                  <div className="kv-full">
+                    <span className="kv-k">First-page preview</span>
+                    <pre className="excerpt">{documentAnalysis.page_text_preview[0].text.slice(0, 800) || '(empty)'}</pre>
+                  </div>
+                )}
+              </div>
+              {(() => {
+                const c = documentAnalysis.classification;
+                if (!c) return null;
+                const tone = c.document_type === 'port_authority_tariff' ? 'good'
+                  : c.document_type === 'unknown' ? 'warn'
+                  : 'warn';
+                const heading = c.document_type === 'port_authority_tariff' ? 'Looks like a port authority tariff'
+                  : c.document_type === 'forwarder_or_agent_fees' ? 'Looks like a forwarder / agent fee sheet'
+                  : c.document_type === 'regulatory_text' ? 'Looks like regulatory / statutory text'
+                  : c.document_type === 'cargo_contract' ? 'Looks like a charter party / cargo contract'
+                  : 'Document type uncertain';
+                const sig = c.signals || {};
+                return (
+                  <div className={cx('next-step', `tone-${tone}`)}>
+                    <strong>{heading}</strong>
+                    <p>{c.reason}</p>
+                    <p className="muted">
+                      Confidence {Math.round((c.confidence || 0) * 100)}% ·
+                      port-authority {sig.port_authority || 0} · forwarder {sig.forwarder || 0} · regulatory {sig.regulatory || 0} · cargo-contract {sig.cargo_contract || 0}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           ) : <Empty msg="No document uploaded yet." action="Choose a tariff PDF" onAction={onTriggerUpload} />
         )}
@@ -783,7 +806,7 @@ function VesselCalculator({ vesselText, setVesselText, knownPorts = [], activePo
       <div className="calc-section">
         <div className="calc-section-head">
           <h4>Cargo</h4>
-          <small className="muted">Tonnes per commodity for cargo dues</small>
+          <small className="muted">Tonnes per commodity</small>
         </div>
         {form.cargoLines.map((line, idx) => (
           <div className="cargo-row" key={idx}>

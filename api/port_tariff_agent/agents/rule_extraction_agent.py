@@ -4,13 +4,22 @@ import base64
 import json
 import os
 import re
+import subprocess
+import tempfile
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any
 
 
 class RuleExtractionAgent:
-    """Calls configured model providers to convert extracted tariff pages into rule packs."""
+    """Calls configured model providers to convert extracted tariff pages into rule packs.
+
+    The agent is purely a transport / orchestration layer. The wording of every prompt
+    that goes to a model is assembled by the deterministic C++ core via the
+    `build-prompt` CLI mode, so the canonical prompt source lives with the rest of the
+    deterministic logic — Python just shells out and ships the result over HTTPS.
+    """
 
     FACT_ROOTS: tuple[str, ...] = (
         "technical_specs.",
@@ -36,9 +45,15 @@ class RuleExtractionAgent:
         "dimensions.gross_tonnage": "technical_specs.gross_tonnage",
     }
 
-    def __init__(self, providers: dict[str, Any], prompt: str):
+    def __init__(self, providers: dict[str, Any], template_path: Path | str, core_binary: Path | str):
+        """Configure the agent with provider config and the C++ core entry points.
+
+        `template_path` is the system-prompt markdown file the core will load.
+        `core_binary` is the path to `port_tariff_core` used for `build-prompt`.
+        """
         self.providers = providers
-        self.prompt = prompt
+        self.template_path = str(template_path)
+        self.core_binary = str(core_binary)
 
     def extract(
         self,
@@ -145,26 +160,29 @@ class RuleExtractionAgent:
         }
 
     def _build_refinement_prompt(self, original_pack: dict[str, Any], diffs: list[dict[str, Any]]) -> str:
-        """Compose a prompt that hands the model its previous output, the failing self-tests,
-        and the exact totals it needs to hit. The model must return the COMPLETE updated pack.
-        """
-        diff_summary = json.dumps(diffs, indent=2, ensure_ascii=False)
-        original_pack_json = json.dumps(original_pack, indent=2, ensure_ascii=False)
-        return (
-            f"{self.prompt}\n\n"
-            "REFINEMENT TASK\n"
-            "===============\n"
-            "You produced this rule pack from the attached tariff document, but its self_tests\n"
-            "do not match expected totals. Identify the missing or wrong rules, fix them, and\n"
-            "return the COMPLETE corrected port_tariff.rule_pack.v1 JSON. Do not return diffs.\n"
-            "Do not skip rules that were correct — keep them as-is. Add missing rules (especially\n"
-            "derived discounts like efficiency caps written as `multiply(const -1, max(const 0, subtract(cargo_subtotal, cap_amount)))`).\n"
-            "Make sure slugs (service_type, vessel_type_*, cargo_type_*) used in vessel rules,\n"
-            "cargo rules, and self_tests are IDENTICAL strings.\n"
-            "Return JSON only. Do not wrap in markdown.\n\n"
-            f"FAILING SELF-TESTS WITH DIFFS:\n{diff_summary}\n\n"
-            f"ORIGINAL RULE PACK:\n{original_pack_json}"
-        )
+        """Delegate refinement-prompt assembly to the C++ core."""
+        return self._core_build_prompt({
+            "mode": "refine",
+            "original_pack": original_pack,
+            "diffs": diffs,
+        })
+
+    def _core_build_prompt(self, params: dict[str, Any]) -> str:
+        """Shell out to `port_tariff_core --mode build-prompt` for prompt assembly."""
+        full_params = {**params, "template_path": self.template_path}
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump(full_params, f, ensure_ascii=False)
+            input_path = f.name
+        try:
+            completed = subprocess.run(
+                [self.core_binary, "--mode", "build-prompt", "--input", input_path],
+                capture_output=True, text=True, check=False,
+            )
+            if completed.returncode != 0:
+                raise RuntimeError(f"build-prompt failed: {completed.stderr.strip() or completed.stdout.strip()}")
+            return json.loads(completed.stdout)["prompt_text"]
+        finally:
+            os.unlink(input_path)
 
     def _eligible_providers(self) -> list[dict[str, Any]]:
         """Return enabled providers with rule_extraction role and a usable key, default-first."""
@@ -196,6 +214,7 @@ class RuleExtractionAgent:
         }
 
     def _build_prompt(self, filename: str, pages: list[dict[str, Any]], candidates: list[dict[str, str]]) -> str:
+        """Delegate text-input prompt assembly to the C++ core."""
         selected_pages = pages[:18]
         page_text = "\n\n".join(
             f"--- PAGE {page.get('page')} ---\n"
@@ -205,30 +224,20 @@ class RuleExtractionAgent:
             f"TEXT:\n{(page.get('text') or '')[:5000]}"
             for page in selected_pages
         )
-        return (
-            f"{self.prompt}\n\n"
-            "Return JSON only. Do not wrap in markdown. The JSON must match port_tariff.rule_pack.v1.\n\n"
-            f"UPLOAD_FILENAME: {filename}\n"
-            f"CANDIDATE_TERMS: {json.dumps(candidates, ensure_ascii=False)}\n\n"
-            f"EXTRACTED_PAGE_TEXT:\n{page_text}"
-        )
+        return self._core_build_prompt({
+            "mode": "extract_text",
+            "filename": filename,
+            "candidates": candidates,
+            "page_text": page_text,
+        })
 
     def _build_native_pdf_prompt(self, filename: str, candidates: list[dict[str, str]]) -> str:
-        """Build the user-side prompt for multimodal PDF input.
-
-        The PDF itself is attached as the first part of the request; the model reads
-        the original tables and applicability text instead of stripped page text.
-        """
-        return (
-            f"{self.prompt}\n\n"
-            "The attached document is a port tariff PDF. Read every page, including the rate tables.\n"
-            "Return JSON only. Do not wrap in markdown. The JSON must match port_tariff.rule_pack.v1.\n"
-            "Every numeric constant in a `formula` MUST appear verbatim in the document and be cited in `evidence` with a page number and short quote.\n"
-            "If a charge applies only to specific ports, vessel types, services, or cargo, encode that as `applicability` conditions on `operational_data.*` or `technical_specs.*` paths.\n"
-            "Do not invent rates. If a rate is missing or ambiguous, surface it in `open_questions` rather than guessing.\n\n"
-            f"UPLOAD_FILENAME: {filename}\n"
-            f"CANDIDATE_TERMS: {json.dumps(candidates, ensure_ascii=False)}"
-        )
+        """Delegate PDF-native prompt assembly to the C++ core."""
+        return self._core_build_prompt({
+            "mode": "extract_pdf",
+            "filename": filename,
+            "candidates": candidates,
+        })
 
     def _call_provider_with_pdf(self, provider: dict[str, Any], prompt: str, pdf_bytes: bytes) -> str:
         kind = provider.get("kind")

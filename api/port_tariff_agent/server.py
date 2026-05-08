@@ -215,7 +215,11 @@ def document_tools() -> DocumentTools:
 
 
 def rule_extraction_agent() -> RuleExtractionAgent:
-    return RuleExtractionAgent(raw_provider_config(), (POC / "prompts" / "rule_extraction_agent.md").read_text())
+    return RuleExtractionAgent(
+        raw_provider_config(),
+        template_path=POC / "prompts" / "rule_extraction_agent.md",
+        core_binary=CORE,
+    )
 
 
 def run_core(mode: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -526,6 +530,9 @@ async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
     document_parse = document_tools().parse_tariff_document(pages)
     extraction_pages = document_parse.get("evidence_packet", {}).get("pages") or pages[:3]
     pdf_bytes = data if (file.filename or "").lower().endswith(".pdf") else None
+
+    classification = run_core("classify-document", {"pages": pages})
+
     extraction = rule_extraction_agent().extract(
         file.filename or "upload",
         extraction_pages,
@@ -595,6 +602,7 @@ async def upload_document(file: UploadFile = File(...)) -> dict[str, Any]:
         "pages": len(pages),
         "candidate_terms": candidates,
         "document_parse": document_parse,
+        "classification": classification,
         "rule_generation": extraction,
         "refinement": refinement,
         "next_stage": "tool_ready" if activated else ("research_required" if extraction.get("status") == "failed" else "configure_llm_or_review_open_questions"),
@@ -627,9 +635,12 @@ def document_page(source_id: str, page: int) -> str:
 
 
 def research_agent() -> ResearchAgent:
-    """Build a ResearchAgent with raw provider config (keys intact) and prompt template."""
-    prompt = (POC / "prompts" / "research_agent.md").read_text()
-    return ResearchAgent(raw_provider_config(), prompt)
+    """Build a ResearchAgent with raw provider config (keys intact); prompt assembly lives in C++."""
+    return ResearchAgent(
+        raw_provider_config(),
+        template_path=POC / "prompts" / "research_agent.md",
+        core_binary=CORE,
+    )
 
 
 def attach_active_document_pages(context: dict[str, Any] | None) -> dict[str, Any]:

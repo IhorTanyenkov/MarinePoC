@@ -21,9 +21,11 @@ FetchContent_MakeAvailable(nlohmann_json)
 add_executable(port_tariff_core
     core/src/main.cpp
     core/src/CoreCli.cpp
+    core/src/DocumentClassifier.cpp
     core/src/FormulaEvaluator.cpp
     core/src/JsonUtil.cpp
     core/src/PlanGraph.cpp
+    core/src/PromptBuilder.cpp
     core/src/RuleMatcher.cpp
     core/src/TariffEngine.cpp)
 

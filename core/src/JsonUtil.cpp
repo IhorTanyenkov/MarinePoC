@@ -16,6 +16,16 @@ Json read_json_file(const std::string& path) {
     return Json::parse(in, nullptr, true, true);
 }
 
+std::string read_text_file(const std::string& path) {
+    std::ifstream in(path);
+    if (!in) {
+        throw std::runtime_error("Cannot open text file: " + path);
+    }
+    std::stringstream buf;
+    buf << in.rdbuf();
+    return buf.str();
+}
+
 double json_to_number(const Json& value) {
     if (value.is_number()) {
         return value.get<double>();

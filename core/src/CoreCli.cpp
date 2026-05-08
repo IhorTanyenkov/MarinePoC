@@ -1,7 +1,9 @@
 #include "nbot_lite/CoreCli.hpp"
 
+#include "nbot_lite/DocumentClassifier.hpp"
 #include "nbot_lite/JsonUtil.hpp"
 #include "nbot_lite/PlanGraph.hpp"
+#include "nbot_lite/PromptBuilder.hpp"
 #include "nbot_lite/TariffEngine.hpp"
 
 #include <exception>
@@ -64,9 +66,12 @@ int run_cli(int argc, char** argv) {
         const std::string mode = arg_value(argc, argv, "--mode", "calculate");
         const std::string input_path = arg_value(argc, argv, "--input", "");
 
-        state.rule_pack = read_json_file(state.rule_path);
-        state.fixture = read_json_file(state.fixture_path);
-        state.providers = read_json_file(state.provider_path);
+        const bool needs_state = mode != "build-prompt" && mode != "classify-document";
+        if (needs_state) {
+            state.rule_pack = read_json_file(state.rule_path);
+            state.fixture = read_json_file(state.fixture_path);
+            state.providers = read_json_file(state.provider_path);
+        }
 
         if (mode == "health") {
             std::cout << Json{
@@ -100,6 +105,29 @@ int run_cli(int argc, char** argv) {
             const Json result = validate_rule_pack(pack);
             std::cout << result.dump(2) << "\n";
             return result.value("ok", false) ? 0 : 2;
+        }
+
+        if (mode == "build-prompt") {
+            if (input_path.empty()) {
+                std::cerr << "build-prompt requires --input <params.json>\n";
+                return 1;
+            }
+            const Json params = read_json_file(input_path);
+            const Json result = PromptBuilder{}.build(params);
+            std::cout << result.dump(2) << "\n";
+            return 0;
+        }
+
+        if (mode == "classify-document") {
+            if (input_path.empty()) {
+                std::cerr << "classify-document requires --input <{pages: [...]}>\n";
+                return 1;
+            }
+            const Json input = read_json_file(input_path);
+            const Json pages = input.contains("pages") ? input.at("pages") : Json::array();
+            const Json result = DocumentClassifier{}.classify(pages);
+            std::cout << result.dump(2) << "\n";
+            return 0;
         }
 
         Json facts = state.fixture.value("vessel", Json::object());

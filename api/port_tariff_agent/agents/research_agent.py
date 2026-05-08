@@ -3,22 +3,26 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
+import tempfile
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any
 
 
 class ResearchAgent:
     """Calls a configured model provider to clarify ambiguous tariff context.
 
-    Given a question and optional grounding (vessel facts, rule pack excerpts,
-    document pages), the agent prompts the configured provider and returns a
-    structured `port_tariff.research_result.v1` answer with citations.
+    Prompt assembly lives in the C++ core (`build-prompt` mode); this class is a
+    transport / orchestration layer only — it parses provider responses and
+    handles fallback across configured providers.
     """
 
-    def __init__(self, providers: dict[str, Any], prompt: str):
+    def __init__(self, providers: dict[str, Any], template_path: Path | str, core_binary: Path | str):
         self.providers = providers
-        self.prompt = prompt
+        self.template_path = str(template_path)
+        self.core_binary = str(core_binary)
 
     def clarify(self, query: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
         """Run a research clarification through the first eligible provider.
@@ -87,27 +91,29 @@ class ResearchAgent:
         }
 
     def _build_prompt(self, query: str, context: dict[str, Any] | None) -> str:
+        """Delegate research-prompt assembly to the C++ core."""
         ctx = context or {}
-        page_excerpts = self._page_excerpts(ctx.get("pages") or [])
-        return (
-            f"{self.prompt}\n\n"
-            "Return JSON only. Do not wrap in markdown. The JSON must match port_tariff.research_result.v1.\n"
-            "If the answer can be found in the document pages provided below, prefer cite-from-document over external claims and set `source_type: \"document\"` with the page number.\n"
-            "Be concise. Findings should be at most 5 entries.\n\n"
-            f"QUESTION: {query}\n\n"
-            f"VESSEL_CONTEXT: {json.dumps(ctx.get('vessel') or {}, ensure_ascii=False)}\n\n"
-            f"RULE_PACK_HINTS: {json.dumps(ctx.get('rule_pack_hints') or {}, ensure_ascii=False)}\n\n"
-            f"DOCUMENT_PAGES:\n{page_excerpts}"
-        )
-
-    def _page_excerpts(self, pages: list[dict[str, Any]]) -> str:
-        if not pages:
-            return "(none provided)"
-        snippets: list[str] = []
-        for page in pages[:8]:
-            text = (page.get("text") or "")[:2400]
-            snippets.append(f"--- PAGE {page.get('page')} ---\n{text}")
-        return "\n\n".join(snippets)
+        params = {
+            "mode": "research",
+            "template_path": self.template_path,
+            "query": query,
+            "vessel": ctx.get("vessel") or {},
+            "rule_pack_hints": ctx.get("rule_pack_hints") or {},
+            "pages": ctx.get("pages") or [],
+        }
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            json.dump(params, f, ensure_ascii=False)
+            input_path = f.name
+        try:
+            completed = subprocess.run(
+                [self.core_binary, "--mode", "build-prompt", "--input", input_path],
+                capture_output=True, text=True, check=False,
+            )
+            if completed.returncode != 0:
+                raise RuntimeError(f"build-prompt failed: {completed.stderr.strip() or completed.stdout.strip()}")
+            return json.loads(completed.stdout)["prompt_text"]
+        finally:
+            os.unlink(input_path)
 
     def _call_provider(self, provider: dict[str, Any], prompt: str) -> str:
         kind = provider.get("kind")
